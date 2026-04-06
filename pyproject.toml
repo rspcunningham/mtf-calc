@@ -1,0 +1,11 @@
+[project]
+name = "mtf-calc"
+version = "0.1.0"
+description = "MTF measurement calculator"
+requires-python = ">=3.10"
+dependencies = [
+    "pywebview",
+]
+
+[project.scripts]
+mtf-calc = "app:main"

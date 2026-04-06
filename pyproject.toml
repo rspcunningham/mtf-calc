@@ -1,11 +1,32 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "mtf-calc"
 version = "0.1.0"
 description = "MTF measurement calculator"
 requires-python = ">=3.10"
 dependencies = [
-    "pywebview",
+    "fastapi",
+    "numpy",
+    "pillow>=12.2.0",
+    "scipy>=1.15.3",
+    "uvicorn",
 ]
 
 [project.scripts]
-mtf-calc = "app:main"
+app = "mtf_calc.server:main"
+render-npy = "mtf_calc.tools.render_npy:main"
+make-crop = "mtf_calc.tools.make_crop:main"
+edge-detect = "mtf_calc.tools.edge_detection:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["mtf_calc"]
+
+[tool.hatch.build]
+include = [
+    "mtf_calc/ui/*.html",
+    "mtf_calc/ui/*.css",
+    "mtf_calc/ui/*.js",
+]

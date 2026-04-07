@@ -3,13 +3,12 @@ import mtf_calc
 from mtf_calc.models import BarSection, FitResult, NormRegion, Roi, RoiConfig, ScaleGroup
 
 # step 0: load data
-raw_image = mtf_calc.io.load_source("path/to/image.npy")
+raw_image = mtf_calc.io.load_source("example-data.npy")
 
 
 # step 1: find anchor point
 anchor = mtf_calc.anchor.find_anchor(raw_image)
 mtf_calc.viz.show_anchor(raw_image, anchor)  # optional visual check
-
 
 # step 2: identify scale groups
 # these may be known ahead of time, selected by a user, or chosen by an agent
@@ -17,6 +16,7 @@ scale_groups: list[ScaleGroup] = [4, 5, 6, 7]
 
 # step 3: normalization ROIs
 black_roi = mtf_calc.select.select_roi(raw_image)
+exit()
 white_roi = mtf_calc.select.select_roi(raw_image, size_ref=black_roi)
 
 norm_rois: dict[NormRegion, Roi] = {

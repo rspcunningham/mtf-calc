@@ -30,7 +30,12 @@ class Anchor:
 
     @property
     def centroid(self) -> Point:
-        roi_points = (self.roi.top_left, self.roi.top_right, self.roi.bottom_left, self.roi.bottom_right)
+        roi_points = (
+            self.roi.top_left,
+            self.roi.top_right,
+            self.roi.bottom_right,
+            self.roi.bottom_left,
+        )
         area_twice = 0.0
         centroid_x = 0.0
         centroid_y = 0.0

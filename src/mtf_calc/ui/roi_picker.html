@@ -37,10 +37,14 @@
       </section>
 
       <aside class="sidebar">
+        <div id="prompt-panel" class="sidebar__panel">
+          <div class="sidebar__label">Current Step</div>
+          <p id="prompt-copy" class="sidebar__prompt"></p>
+        </div>
         <div class="sidebar__panel">
           <div class="sidebar__label">Interaction</div>
           <p id="interaction-copy" class="sidebar__copy">
-            Drag to draw. Use the mouse wheel to zoom. Hold space and drag to pan.
+            Drag to draw. Use the mouse wheel to zoom. Hold Shift and drag to pan.
           </p>
         </div>
         <div class="sidebar__panel">
@@ -51,7 +55,7 @@
           <div class="sidebar__label">Hints</div>
           <ul class="sidebar__list">
             <li>Mouse wheel zooms around the pointer.</li>
-            <li>Space temporarily switches to pan.</li>
+            <li>Hold Shift and drag to pan without switching tools.</li>
             <li>Fixed-size mode places a preview rectangle on click.</li>
             <li>Enter accepts. Escape cancels.</li>
           </ul>

@@ -35,10 +35,15 @@ class _VizHostClient:
         self._closed: bool = False
         self._await_ready()
 
-    def select_roi(self, raw_image: NDArray[np.float32], size_ref: Roi | None = None) -> Roi:
+    def select_roi(
+        self,
+        raw_image: NDArray[np.float32],
+        size_ref: Roi | None = None,
+        prompt: str | None = None,
+    ) -> Roi:
         response = self._request(
             command="select_roi",
-            payload=build_select_roi_config(raw_image, size_ref=size_ref),
+            payload=build_select_roi_config(raw_image, size_ref=size_ref, prompt=prompt),
         )
         result = response.get("result")
         if not isinstance(result, dict):
@@ -138,8 +143,12 @@ _client: _VizHostClient | None = None
 _client_lock = threading.Lock()
 
 
-def select_roi(raw_image: NDArray[np.float32], size_ref: Roi | None = None) -> Roi:
-    return _get_client().select_roi(raw_image, size_ref=size_ref)
+def select_roi(
+    raw_image: NDArray[np.float32],
+    size_ref: Roi | None = None,
+    prompt: str | None = None,
+) -> Roi:
+    return _get_client().select_roi(raw_image, size_ref=size_ref, prompt=prompt)
 
 
 def show_anchor(raw_image: NDArray[np.float32], anchor: Anchor) -> None:

@@ -178,12 +178,18 @@ body {
 }
 
 .sidebar__copy,
+.sidebar__prompt,
 .sidebar__meta,
 .sidebar__list {
   margin: 0;
   font-size: 13px;
   line-height: 1.6;
   color: var(--muted);
+}
+
+.sidebar__prompt {
+  color: var(--text);
+  font-size: 14px;
 }
 
 .sidebar__list {

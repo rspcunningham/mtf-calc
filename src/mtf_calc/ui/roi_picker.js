@@ -27,6 +27,8 @@ const overlayCtx = overlayCanvas.getContext("2d");
 const zoomLabel = $("zoom-label");
 const modeLabel = $("mode-label");
 const toolTitle = $("tool-title");
+const promptPanel = $("prompt-panel");
+const promptCopy = $("prompt-copy");
 const interactionCopy = $("interaction-copy");
 const selectionMeta = $("selection-meta");
 const acceptButton = $("btn-accept");
@@ -121,23 +123,39 @@ function applyToolConfig() {
   if (tool === "show-anchor") {
     state.mode = "pan";
     toolTitle.textContent = "Anchor Preview";
+    promptPanel.hidden = false;
+    promptCopy.textContent = state.config.prompt ?? "Inspect the detected anchor before continuing.";
     drawButton.hidden = true;
     modeLabel.hidden = true;
     acceptButton.disabled = false;
     acceptButton.textContent = "Done";
     cancelButton.textContent = "Close";
-    interactionCopy.textContent = "Inspect the detected anchor. Use the mouse wheel to zoom and drag to pan. Press Enter, Escape, or Close when finished.";
+    interactionCopy.textContent = "Inspect the detected anchor. Use the mouse wheel to zoom. Hold Shift and drag to pan. Press Enter, Escape, or Close when finished.";
     updateAnchorMeta();
     return;
   }
 
   toolTitle.textContent = "ROI Picker";
+  promptPanel.hidden = false;
+  promptCopy.textContent = resolvePromptCopy();
   drawButton.hidden = false;
   modeLabel.hidden = false;
   acceptButton.textContent = "Accept";
   cancelButton.textContent = "Cancel";
   setMode("draw");
   updateSelectionMeta();
+}
+
+function resolvePromptCopy() {
+  if (typeof state.config.prompt === "string" && state.config.prompt.trim().length > 0) {
+    return state.config.prompt.trim();
+  }
+
+  if (state.config.sizeRef) {
+    return "Select the next ROI using the same size as the reference ROI.";
+  }
+
+  return "Select the ROI for the current analysis step.";
 }
 
 function setMode(mode) {
@@ -148,11 +166,11 @@ function setMode(mode) {
 
   if (state.config.sizeRef) {
     interactionCopy.textContent = mode === "draw"
-      ? "Click to place the fixed-size ROI. Use the mouse wheel to zoom. Hold space and drag to pan."
+      ? "Click to place the fixed-size ROI. Use the mouse wheel to zoom. Hold Shift and drag to pan."
       : "Drag to pan. Switch back to Draw to place the fixed-size ROI.";
   } else {
     interactionCopy.textContent = mode === "draw"
-      ? "Drag to draw. Use the mouse wheel to zoom. Hold space and drag to pan."
+      ? "Drag to draw. Use the mouse wheel to zoom. Hold Shift and drag to pan."
       : "Drag to pan. Switch back to Draw to place a new ROI.";
   }
 }
@@ -216,15 +234,15 @@ function handleMouseDown(event) {
     return;
   }
 
-  const pixel = screenToPixel(event.clientX, event.clientY);
-  if (!isInside(pixel)) {
-    return;
-  }
-
   if (shouldPan(event)) {
     state.panning = true;
     state.panStartX = event.clientX - state.display.panX;
     state.panStartY = event.clientY - state.display.panY;
+    return;
+  }
+
+  const pixel = screenToPixel(event.clientX, event.clientY);
+  if (!isInside(pixel)) {
     return;
   }
 
@@ -332,7 +350,7 @@ function handleKeyUp(event) {
 }
 
 function shouldPan(event) {
-  return event.button === 1 || state.mode === "pan" || state.spacePan;
+  return event.button === 1 || event.shiftKey || state.mode === "pan" || state.spacePan;
 }
 
 function renderAll() {

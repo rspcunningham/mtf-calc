@@ -4,9 +4,9 @@ from typing import Literal, TypeAlias
 Dim: TypeAlias = Literal["X", "Y"]
 ScaleGroup: TypeAlias = Literal[-2, -1, 0, 1, 2, 3, 4, 5, 6, 7]
 Element: TypeAlias = Literal[1, 2, 3, 4, 5, 6]
-NormRegion: TypeAlias = Literal["white", "black"]
+NormRegion: TypeAlias = Literal[1, 0]
 
-@dataclass
+@dataclass(frozen=True)
 class BarSection:
     group: int
     element: int

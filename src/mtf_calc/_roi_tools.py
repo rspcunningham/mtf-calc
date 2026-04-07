@@ -11,13 +11,18 @@ from PIL import Image
 from mtf_calc.models import Anchor, Point, Roi
 
 
-def build_select_roi_config(raw_image: NDArray[np.float32], size_ref: Roi | None = None) -> dict[str, object]:
+def build_select_roi_config(
+    raw_image: NDArray[np.float32],
+    size_ref: Roi | None = None,
+    prompt: str | None = None,
+) -> dict[str, object]:
     return {
         "tool": "select-roi",
         "rows": cast(int, raw_image.shape[0]),
         "cols": cast(int, raw_image.shape[1]),
         "imageDataUrl": _encode_image(raw_image),
         "sizeRef": _serialize_size_ref(size_ref),
+        "prompt": prompt,
     }
 
 

@@ -15,8 +15,15 @@ mtf_calc.viz.show_anchor(raw_image, anchor)  # optional visual check
 scale_groups: list[ScaleGroup] = [4, 5, 6, 7]
 
 # step 3: normalization ROIs
-black_roi = mtf_calc.select.select_roi(raw_image)
-white_roi = mtf_calc.select.select_roi(raw_image, size_ref=black_roi)
+black_roi = mtf_calc.select.select_roi(
+    raw_image,
+    prompt="Select the black normalization ROI from a dark background patch with no bars crossing it.",
+)
+white_roi = mtf_calc.select.select_roi(
+    raw_image,
+    size_ref=black_roi,
+    prompt="Select the white normalization ROI from a bright background patch. Match the black ROI region type and size.",
+)
 
 norm_rois: dict[NormRegion, Roi] = {
     "black": black_roi,
@@ -27,20 +34,19 @@ norm_rois: dict[NormRegion, Roi] = {
 bar_rois: dict[BarSection, Roi] = {}
 results: dict[BarSection, FitResult] = {}
 
-exit()
+
 for group in scale_groups:
     for element in range(1, 7):
 
         n_harmonics = 6
-
         for dim in ("X", "Y"):
 
-            bar_roi = mtf_calc.select.select_roi(raw_image)
-
+            bar_roi = mtf_calc.select.select_roi(
+                raw_image,
+                prompt=f"Select the ROI for Group {group}, Element {element}, {dim}-directed profile.",
+            )
             bar_rois[BarSection(group, element, dim)] = bar_roi
-
             profile = mtf_calc.profiles.extract(raw_image, bar_roi=bar_roi, norm_rois=norm_rois, dim=dim)
-
 
             results[BarSection(group, element, dim)] = mtf_calc.profiles.fit(
                 profile,

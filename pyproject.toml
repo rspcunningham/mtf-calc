@@ -6,9 +6,15 @@ build-backend = "hatchling.build"
 name = "mtf-calc"
 version = "0.1.0"
 description = "MTF measurement calculator"
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.14"
 dependencies = [
+    "matplotlib>=3.10.8",
     "numpy>=2.2.6",
+    "openai-agents>=0.13.5",
+    "openai>=2.30.0",
+    "pillow>=11.0.0",
+    "python-dotenv>=1.2.2",
+    "scipy>=1.15.0",
 ]
 
 [project.scripts]

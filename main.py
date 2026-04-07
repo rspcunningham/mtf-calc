@@ -26,8 +26,8 @@ white_roi = mtf_calc.select.select_roi(
 )
 
 norm_rois: dict[NormRegion, Roi] = {
-    "black": black_roi,
-    "white": white_roi,
+    0: black_roi,
+    1: white_roi,
 }
 
 # step 4: bar ROIs and curve fitting

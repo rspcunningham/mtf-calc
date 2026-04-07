@@ -9,6 +9,7 @@ from numpy.typing import NDArray
 from PIL import Image
 
 from mtf_calc.models import Anchor, Point, Roi
+from mtf_calc.models import MtfResult
 
 
 def build_select_roi_config(
@@ -39,6 +40,22 @@ def build_show_anchor_config(raw_image: NDArray[np.float32], anchor: Anchor) -> 
                 "y": float(anchor.centroid.y),
             },
         },
+    }
+
+
+def build_show_mtf_config(mtf_result: MtfResult) -> dict[str, object]:
+    return {
+        "tool": "show-mtf",
+        "points": [
+            {
+                "lpPerMm": float(point.lp_per_mm),
+                "lineWidth": float(point.line_width),
+                "mtfX": float(point.mtf_x) if point.mtf_x is not None else None,
+                "mtfY": float(point.mtf_y) if point.mtf_y is not None else None,
+                "mtfAvg": float(point.mtf_avg) if point.mtf_avg is not None else None,
+            }
+            for point in mtf_result
+        ],
     }
 
 

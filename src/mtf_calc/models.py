@@ -79,9 +79,9 @@ class FitResult:
 class MtfPoint:
     lp_per_mm: float
     line_width: float
-    mtf_x: float
-    mtf_y: float
-    mtf_avg: float
+    mtf_x: float | None
+    mtf_y: float | None
+    mtf_avg: float | None
 
 
 MtfResult: TypeAlias = list[MtfPoint]

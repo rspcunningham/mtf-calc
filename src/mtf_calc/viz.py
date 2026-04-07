@@ -11,7 +11,12 @@ from typing import IO, cast
 import numpy as np
 from numpy.typing import NDArray
 
-from mtf_calc._roi_tools import build_select_roi_config, build_show_anchor_config, roi_from_payload
+from mtf_calc._roi_tools import (
+    build_select_roi_config,
+    build_show_anchor_config,
+    build_show_mtf_config,
+    roi_from_payload,
+)
 from mtf_calc.models import Anchor, MtfResult
 from mtf_calc.models import Roi
 
@@ -54,6 +59,12 @@ class _VizHostClient:
         _ = self._request(
             command="show_anchor",
             payload=build_show_anchor_config(raw_image, anchor),
+        )
+
+    def show_mtf_graph(self, mtf_result: MtfResult) -> None:
+        _ = self._request(
+            command="show_mtf",
+            payload=build_show_mtf_config(mtf_result),
         )
 
     def close(self) -> None:
@@ -188,5 +199,6 @@ _ = atexit.register(_close_for_atexit)
 
 
 def show_mtf_graph(mtf_result: MtfResult) -> None:
-    del mtf_result
-    raise NotImplementedError
+    if not mtf_result:
+        raise ValueError("Cannot show MTF graph: the computed Stage 7 result is empty.")
+    _get_client().show_mtf_graph(mtf_result)

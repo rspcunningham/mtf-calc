@@ -81,7 +81,7 @@ class _VizBridge:
 
     def cancel(self) -> None:
         active_request = self._active_request
-        if active_request is not None and active_request.command == "show_anchor":
+        if active_request is not None and active_request.command in {"show_anchor", "show_mtf"}:
             self._finish_active_request(ok=True)
             return
         self._finish_active_request(ok=False, error="ROI selection cancelled")
@@ -197,6 +197,11 @@ def _command_loop(
             bridge.wait_for_completion()
             continue
 
+        if request.command == "show_mtf":
+            bridge.present(request)
+            bridge.wait_for_completion()
+            continue
+
         response_writer.send(
             {
                 "type": "response",
@@ -257,6 +262,8 @@ def _window_title_for(command: str) -> str:
         return "Select ROI"
     if command == "show_anchor":
         return "Anchor Preview"
+    if command == "show_mtf":
+        return "MTF Graph"
     return "MTF Calc"
 
 

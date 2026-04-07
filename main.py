@@ -54,6 +54,12 @@ for group in scale_groups:
                 n_harmonics=n_harmonics,
             )
 
+            break;
+
+        break;
+
+    break;
+
 
 # step 5: save the reusable selection config
 roi_config = RoiConfig(

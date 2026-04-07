@@ -12,6 +12,16 @@ class BarSection:
     element: int
     dim: Dim
 
+    @property
+    def frequency(self) -> float:
+        """Spatial frequency of this USAF 1951 bar section in lp/mm."""
+        return 2 ** (self.group + (self.element - 1) / 6)
+
+    @property
+    def line_width(self) -> float:
+        """Bar width in micrometers for this USAF 1951 bar section."""
+        return 1000 / (2 * self.frequency)
+
 @dataclass
 class Point:
     x: float

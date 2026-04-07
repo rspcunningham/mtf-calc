@@ -16,7 +16,6 @@ scale_groups: list[ScaleGroup] = [4, 5, 6, 7]
 
 # step 3: normalization ROIs
 black_roi = mtf_calc.select.select_roi(raw_image)
-exit()
 white_roi = mtf_calc.select.select_roi(raw_image, size_ref=black_roi)
 
 norm_rois: dict[NormRegion, Roi] = {
@@ -28,6 +27,7 @@ norm_rois: dict[NormRegion, Roi] = {
 bar_rois: dict[BarSection, Roi] = {}
 results: dict[BarSection, FitResult] = {}
 
+exit()
 for group in scale_groups:
     for element in range(1, 7):
 

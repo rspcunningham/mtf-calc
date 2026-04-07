@@ -1,3 +1,3 @@
-from . import anchor, io, mtf, profile as profiles, select, viz
+from . import anchor, io, mtf, profiles as profiles, select, viz
 
 __all__ = ["anchor", "io", "mtf", "profiles", "select", "viz"]

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
-from pathlib import Path
 from queue import Empty, Queue
 import sys
 import threading
@@ -10,14 +9,13 @@ from typing import IO, Callable, cast
 
 import webview
 
-from mtf_calc._roi_tools import roi_from_payload, roi_to_payload
-
 
 @dataclass
 class _HostRequest:
     request_id: int
-    command: str
-    payload: dict[str, object]
+    title: str
+    html: str
+    request: object | None
 
 
 class _ResponseWriter:
@@ -33,14 +31,13 @@ class _ResponseWriter:
             self._stream.flush()
 
 
-class _VizBridge:
+class _Bridge:
     def __init__(self, response_writer: _ResponseWriter) -> None:
         self._response_writer: _ResponseWriter = response_writer
         self._window: webview.Window | None = None
         self._active_request: _HostRequest | None = None
         self._request_complete: threading.Event = threading.Event()
         self._request_lock: threading.Lock = threading.Lock()
-        self._ui_path: Path = Path(__file__).with_name("ui") / "roi_picker.html"
 
     def attach_window(self, window: webview.Window) -> None:
         self._window = window
@@ -59,32 +56,28 @@ class _VizBridge:
             self._active_request = request
             self._request_complete.clear()
 
-        self._window.set_title(_window_title_for(request.command))
-        self._window.load_url(str(self._ui_path.resolve()))
+        self._window.set_title(request.title)
+        self._window.load_html(request.html)
         self._window.show()
 
     def wait_for_completion(self) -> None:
         _ = self._request_complete.wait()
 
-    def load_config(self) -> dict[str, object]:
+    def get_request(self) -> object | None:
         active_request = self._active_request
         if active_request is None:
-            raise RuntimeError("No active visualization request")
-        return active_request.payload
+            raise RuntimeError("No active viewer request")
+        return active_request.request
 
-    def submit_selection(self, payload: dict[str, object]) -> None:
-        roi = roi_from_payload(payload)
-        self._finish_active_request(ok=True, result=cast(dict[str, object], roi_to_payload(roi)))
+    def resolve(self, result: object | None = None) -> None:
+        self._finish_active_request(ok=True, result=result)
 
-    def complete_view(self) -> None:
-        self._finish_active_request(ok=True)
-
-    def cancel(self) -> None:
-        active_request = self._active_request
-        if active_request is not None and active_request.command in {"show_anchor", "show_rois", "show_mtf"}:
-            self._finish_active_request(ok=True)
-            return
-        self._finish_active_request(ok=False, error="ROI selection cancelled")
+    def cancel(self, reason: str | None = None) -> None:
+        self._finish_active_request(
+            ok=False,
+            error=reason or "Viewer interaction cancelled",
+            cancelled=True,
+        )
 
     def on_window_closing(self) -> bool:
         self.cancel()
@@ -100,6 +93,7 @@ class _VizBridge:
         ok: bool,
         result: object | None = None,
         error: str | None = None,
+        cancelled: bool = False,
     ) -> None:
         if self._window is None:
             raise RuntimeError("Host window is not attached")
@@ -116,9 +110,10 @@ class _VizBridge:
                 "ok": ok,
             }
             if ok:
-                response["result"] = result or {}
+                response["result"] = result
             else:
-                response["error"] = error or "Visualization request failed"
+                response["error"] = error or "Viewer request failed"
+                response["cancelled"] = cancelled
 
             self._active_request = None
             self._response_writer.send(response)
@@ -129,25 +124,24 @@ class _VizBridge:
 
 def run_host(stdin: IO[str], stdout: IO[str]) -> None:
     response_writer = _ResponseWriter(stdout)
-    bridge = _VizBridge(response_writer)
+    bridge = _Bridge(response_writer)
     request_queue: Queue[_HostRequest | None] = Queue()
 
     create_window = cast(Callable[..., webview.Window | None], webview.create_window)
     window = create_window(
-        title="MTF Calc",
+        title="Viewer",
         html="<html><body></body></html>",
         width=1440,
         height=920,
         min_size=(960, 640),
     )
     if window is None:
-        raise RuntimeError("Failed to create visualization host window")
+        raise RuntimeError("Failed to create viewer window")
 
     bridge.attach_window(window)
     window.expose(
-        bridge.load_config,
-        bridge.submit_selection,
-        bridge.complete_view,
+        bridge.get_request,
+        bridge.resolve,
         bridge.cancel,
     )
     window.events.closing += bridge.on_window_closing
@@ -160,7 +154,7 @@ def run_host(stdin: IO[str], stdout: IO[str]) -> None:
 
 
 def _command_loop(
-    bridge: _VizBridge,
+    bridge: _Bridge,
     request_queue: Queue[_HostRequest | None],
     stdin: IO[str],
     response_writer: _ResponseWriter,
@@ -183,38 +177,12 @@ def _command_loop(
             bridge.shutdown()
             return
 
-        if request.command == "shutdown":
+        if request.request_id == 0:
             bridge.shutdown()
             return
 
-        if request.command == "select_roi":
-            bridge.present(request)
-            bridge.wait_for_completion()
-            continue
-
-        if request.command == "show_anchor":
-            bridge.present(request)
-            bridge.wait_for_completion()
-            continue
-
-        if request.command == "show_rois":
-            bridge.present(request)
-            bridge.wait_for_completion()
-            continue
-
-        if request.command == "show_mtf":
-            bridge.present(request)
-            bridge.wait_for_completion()
-            continue
-
-        response_writer.send(
-            {
-                "type": "response",
-                "id": request.request_id,
-                "ok": False,
-                "error": f"Unknown visualization command: {request.command}",
-            }
-        )
+        bridge.present(request)
+        bridge.wait_for_completion()
 
 
 def _stdin_reader(
@@ -237,6 +205,7 @@ def _stdin_reader(
                     "id": -1,
                     "ok": False,
                     "error": str(exc),
+                    "cancelled": False,
                 }
             )
 
@@ -249,29 +218,32 @@ def _coerce_request(raw_request: dict[str, object]) -> _HostRequest:
     payload = raw_request.get("payload")
 
     if not isinstance(request_id, int):
-        raise TypeError("Visualization request id must be an integer")
+        raise TypeError("Viewer request id must be an integer")
     if not isinstance(command, str):
-        raise TypeError("Visualization command must be a string")
+        raise TypeError("Viewer command must be a string")
+    if command == "shutdown":
+        return _HostRequest(request_id=0, title="Viewer", html="", request=None)
+    if command != "show":
+        raise TypeError(f"Unknown viewer command: {command}")
     if not isinstance(payload, dict):
-        raise TypeError("Visualization payload must be a dictionary")
+        raise TypeError("Viewer payload must be a dictionary")
+
+    typed_payload = cast(dict[str, object], payload)
+    title = typed_payload.get("title")
+    html = typed_payload.get("html")
+    request = typed_payload.get("request")
+
+    if not isinstance(title, str) or not title.strip():
+        raise TypeError("Viewer title must be a non-empty string")
+    if not isinstance(html, str) or not html.strip():
+        raise TypeError("Viewer html must be a non-empty string")
 
     return _HostRequest(
         request_id=request_id,
-        command=command,
-        payload=cast(dict[str, object], payload),
+        title=title,
+        html=html,
+        request=request,
     )
-
-
-def _window_title_for(command: str) -> str:
-    if command == "select_roi":
-        return "Select ROI"
-    if command == "show_anchor":
-        return "Anchor Preview"
-    if command == "show_rois":
-        return "Seeded ROI Review"
-    if command == "show_mtf":
-        return "MTF Graph"
-    return "MTF Calc"
 
 
 def main() -> None:

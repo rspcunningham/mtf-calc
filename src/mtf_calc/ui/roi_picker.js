@@ -45,11 +45,11 @@ const cancelButton = $("btn-cancel");
 async function init() {
   await waitForPywebview();
 
-  if (typeof window.pywebview?.api?.load_config !== "function") {
-    throw new Error("pywebview bridge did not expose load_config()");
+  if (typeof window.pywebview?.api?.get_request !== "function") {
+    throw new Error("pywebview bridge did not expose get_request()");
   }
 
-  state.config = await window.pywebview.api.load_config();
+  state.config = await window.pywebview.api.get_request();
   if (typeof state.config.imageDataUrl === "string") {
     state.image = await loadImage(state.config.imageDataUrl);
     imageCanvas.width = state.config.cols;
@@ -67,7 +67,7 @@ async function init() {
 
 function waitForPywebview() {
   return new Promise((resolve) => {
-    const isReady = () => typeof window.pywebview?.api?.load_config === "function";
+    const isReady = () => typeof window.pywebview?.api?.get_request === "function";
 
     if (isReady()) {
       resolve();
@@ -753,7 +753,7 @@ async function submitSelection() {
     return;
   }
 
-  await window.pywebview.api.submit_selection({
+  await window.pywebview.api.resolve({
     left: state.selection.left,
     top: state.selection.top,
     right: state.selection.right,
@@ -762,7 +762,7 @@ async function submitSelection() {
 }
 
 async function completeView() {
-  await window.pywebview.api.complete_view();
+  await window.pywebview.api.resolve(null);
 }
 
 async function cancelSelection() {

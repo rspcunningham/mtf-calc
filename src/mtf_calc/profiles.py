@@ -15,6 +15,58 @@ class _OptimizeResult(Protocol):
     success: bool
 
 
+def _design_matrix(
+    x: NDArray[np.float64],
+    *,
+    period: float,
+    phase: float,
+    harmonic_count: int,
+) -> NDArray[np.float64]:
+    omega = 2.0 * np.pi / period
+    columns = [x, np.ones_like(x)]
+    for index in range(harmonic_count):
+        harmonic = 2 * index + 1
+        columns.append(np.sin(harmonic * (omega * x + phase)))
+    return np.column_stack(columns)
+
+
+def _solve_linear_coeffs(
+    x: NDArray[np.float64],
+    y: NDArray[np.float64],
+    *,
+    period: float,
+    phase: float,
+    harmonic_count: int,
+) -> tuple[NDArray[np.float64], NDArray[np.float64], float]:
+    design = _design_matrix(x, period=period, phase=phase, harmonic_count=harmonic_count)
+    coeffs, *_ = np.linalg.lstsq(design, y, rcond=None)
+    coeffs = cast(NDArray[np.float64], coeffs)
+    fitted = design @ coeffs
+    residual = float(np.sum(np.square(fitted - y)))
+    return coeffs, fitted, residual
+
+
+def evaluate_fit(profile: Profile, fit: FitResult) -> NDArray[np.float64]:
+    values: NDArray[np.float64] = np.asarray(profile.norm_values, dtype=np.float64)
+    if values.size == 0:
+        raise ValueError("Profile is empty.")
+    if not np.isfinite(values).all():
+        raise ValueError("Profile contains non-finite values.")
+
+    x = np.arange(values.size, dtype=np.float64)
+    coeffs = np.array(
+        [fit.slope, fit.intercept, *fit.harmonic_amplitudes],
+        dtype=np.float64,
+    )
+    design = _design_matrix(
+        x,
+        period=float(fit.period_px),
+        phase=float(fit.phase_rad),
+        harmonic_count=len(fit.harmonic_amplitudes),
+    )
+    return cast(NDArray[np.float64], design @ coeffs)
+
+
 def get_norm(
     raw_image: NDArray[np.float32],
     norm_roi_dict: dict[NormRegion, Roi],
@@ -28,6 +80,7 @@ def get_norm(
         return float(raw_image[y0:y1, x0:x1].mean())
 
     return roi_mean(norm_roi_dict[0]), roi_mean(norm_roi_dict[1])
+
 
 def extract(
     raw_image: NDArray[np.float32],
@@ -106,35 +159,6 @@ def fit(
             return max(centered.size / 3.0, 4.0)
         return float(max(np.argmax(search) + 2, 4.0))
 
-    def design_matrix(
-        x: NDArray[np.float64],
-        *,
-        period: float,
-        phase: float,
-        harmonic_count: int,
-    ) -> NDArray[np.float64]:
-        omega = 2.0 * np.pi / period
-        columns = [x, np.ones_like(x)]
-        for index in range(harmonic_count):
-            harmonic = 2 * index + 1
-            columns.append(np.sin(harmonic * (omega * x + phase)))
-        return np.column_stack(columns)
-
-    def solve_linear_coeffs(
-        x: NDArray[np.float64],
-        y: NDArray[np.float64],
-        *,
-        period: float,
-        phase: float,
-        harmonic_count: int,
-    ) -> tuple[NDArray[np.float64], NDArray[np.float64], float]:
-        design = design_matrix(x, period=period, phase=phase, harmonic_count=harmonic_count)
-        coeffs, *_ = np.linalg.lstsq(design, y, rcond=None)
-        coeffs = cast(NDArray[np.float64], coeffs)
-        fitted = design @ coeffs
-        residual = float(np.sum(np.square(fitted - y)))
-        return coeffs, fitted, residual
-
     x = np.arange(n, dtype=np.float64)
     y: NDArray[np.float64] = values.astype(np.float64, copy=False)
 
@@ -152,7 +176,7 @@ def fit(
 
     for period in np.linspace(min_period, max_period, 48):
         for phase in np.linspace(-np.pi, np.pi, 48, endpoint=False):
-            coeffs, _, residual = solve_linear_coeffs(
+            coeffs, _, residual = _solve_linear_coeffs(
                 x,
                 y,
                 period=float(period),
@@ -166,7 +190,7 @@ def fit(
                 best_coeffs = coeffs
 
     def objective(params: NDArray[np.float64]) -> float:
-        return solve_linear_coeffs(
+        return _solve_linear_coeffs(
             x,
             y,
             period=float(params[0]),
@@ -177,17 +201,17 @@ def fit(
     optimized = cast(
         _OptimizeResult,
         _scipy_minimize(
-        objective,
-        x0=np.array([best_period, best_phase], dtype=np.float64),
-        method="L-BFGS-B",
-        bounds=[(min_period, max_period), (-np.pi, np.pi)],
-        options={"maxiter": 300},
+            objective,
+            x0=np.array([best_period, best_phase], dtype=np.float64),
+            method="L-BFGS-B",
+            bounds=[(min_period, max_period), (-np.pi, np.pi)],
+            options={"maxiter": 300},
         ),
     )
 
     period_px = float(optimized.x[0]) if optimized.success else best_period
     phase_rad = float(optimized.x[1]) if optimized.success else best_phase
-    coeffs, _, residual = solve_linear_coeffs(
+    coeffs, _, residual = _solve_linear_coeffs(
         x,
         y,
         period=period_px,

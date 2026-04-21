@@ -34,6 +34,12 @@ class Roi:
     bottom_left: Point
     bottom_right: Point
 
+
+@dataclass
+class BarRoiEntry:
+    roi: Roi
+    n_harmonics: int = 3
+
 @dataclass
 class Anchor:
     roi: Roi
@@ -91,7 +97,7 @@ MtfResult: TypeAlias = list[MtfPoint]
 class RoiConfig:
     anchor: Anchor
     scale_groups: list[ScaleGroup]
-    bar_rois: dict[BarSection, Roi]
+    bar_rois: dict[BarSection, BarRoiEntry]
     norm_rois: dict[NormRegion, Roi]
 
 @dataclass

@@ -6,6 +6,7 @@ from numpy.typing import NDArray
 
 from mtf_calc.models import (
     Anchor,
+    BarRoiEntry,
     BarSection,
     Dim,
     MtfResult,
@@ -31,9 +32,10 @@ def save_roi_config(config: RoiConfig, path: str) -> None:
                 "group": section.group,
                 "element": section.element,
                 "dim": section.dim,
-                "roi": _serialize_roi(roi),
+                "n_harmonics": entry.n_harmonics,
+                "roi": _serialize_roi(entry.roi),
             }
-            for section, roi in sorted(
+            for section, entry in sorted(
                 config.bar_rois.items(),
                 key=lambda item: (item[0].group, item[0].element, item[0].dim),
             )
@@ -69,7 +71,10 @@ def load_roi_config(path: str) -> RoiConfig:
                 group=_as_int(entry["group"]),
                 element=_as_int(entry["element"]),
                 dim=cast(Dim, _as_str(entry["dim"])),
-            ): _deserialize_roi(_as_object(entry["roi"]))
+            ): BarRoiEntry(
+                roi=_deserialize_roi(_as_object(entry["roi"])),
+                n_harmonics=_load_n_harmonics(entry),
+            )
             for entry in (_as_object(item) for item in bar_rois_payload)
         },
         norm_rois={
@@ -82,14 +87,17 @@ def load_roi_config(path: str) -> RoiConfig:
 def translate_rois_from_anchor(
     config: RoiConfig,
     anchor: Anchor,
-) -> tuple[dict[BarSection, Roi], dict[NormRegion, Roi]]:
+) -> tuple[dict[BarSection, BarRoiEntry], dict[NormRegion, Roi]]:
     dx = float(anchor.centroid.x - config.anchor.centroid.x)
     dy = float(anchor.centroid.y - config.anchor.centroid.y)
 
     return (
         {
-            section: _translate_roi(roi, dx=dx, dy=dy)
-            for section, roi in config.bar_rois.items()
+            section: BarRoiEntry(
+                roi=_translate_roi(entry.roi, dx=dx, dy=dy),
+                n_harmonics=entry.n_harmonics,
+            )
+            for section, entry in config.bar_rois.items()
         },
         {
             region: _translate_roi(roi, dx=dx, dy=dy)
@@ -203,3 +211,11 @@ def _as_norm_region(value: object) -> NormRegion:
     if region not in (0, 1):
         raise ValueError(f"Invalid norm region: {region}")
     return region
+
+
+def _load_n_harmonics(payload: dict[str, object]) -> int:
+    value = payload.get("n_harmonics", 3)
+    n_harmonics = _as_int(value)
+    if n_harmonics < 1:
+        raise ValueError("n_harmonics must be at least 1")
+    return n_harmonics

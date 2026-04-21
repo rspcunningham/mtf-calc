@@ -1,15 +1,12 @@
 from __future__ import annotations
 
 import base64
-import io
 from typing import cast
 
 import numpy as np
 from numpy.typing import NDArray
-from PIL import Image
 
 from mtf_calc.models import Anchor, BarSection, NormRegion, Point, Roi
-from mtf_calc.models import MtfResult
 
 
 def build_select_roi_config(
@@ -21,7 +18,7 @@ def build_select_roi_config(
         "tool": "select-roi",
         "rows": cast(int, raw_image.shape[0]),
         "cols": cast(int, raw_image.shape[1]),
-        "imageDataUrl": _encode_image(raw_image),
+        "rawImage": _encode_raw_image(raw_image),
         "sizeRef": _serialize_size_ref(size_ref),
         "prompt": prompt,
     }
@@ -32,7 +29,7 @@ def build_show_anchor_config(raw_image: NDArray[np.float32], anchor: Anchor) -> 
         "tool": "show-anchor",
         "rows": cast(int, raw_image.shape[0]),
         "cols": cast(int, raw_image.shape[1]),
-        "imageDataUrl": _encode_image(raw_image),
+        "rawImage": _encode_raw_image(raw_image),
         "anchor": {
             "roi": roi_to_payload(anchor.roi),
             "centroid": {
@@ -54,7 +51,7 @@ def build_show_rois_config(
         "tool": "show-rois",
         "rows": cast(int, raw_image.shape[0]),
         "cols": cast(int, raw_image.shape[1]),
-        "imageDataUrl": _encode_image(raw_image),
+        "rawImage": _encode_raw_image(raw_image),
         "anchor": {
             "roi": roi_to_payload(anchor.roi),
             "centroid": {
@@ -80,22 +77,6 @@ def build_show_rois_config(
                 bar_rois.items(),
                 key=lambda item: (item[0].group, item[0].element, item[0].dim),
             )
-        ],
-    }
-
-
-def build_show_mtf_config(mtf_result: MtfResult) -> dict[str, object]:
-    return {
-        "tool": "show-mtf",
-        "points": [
-            {
-                "lpPerMm": float(point.lp_per_mm),
-                "lineWidth": float(point.line_width),
-                "mtfX": float(point.mtf_x) if point.mtf_x is not None else None,
-                "mtfY": float(point.mtf_y) if point.mtf_y is not None else None,
-                "mtfAvg": float(point.mtf_avg) if point.mtf_avg is not None else None,
-            }
-            for point in mtf_result
         ],
     }
 
@@ -126,14 +107,15 @@ def roi_to_payload(roi: Roi) -> dict[str, float]:
     }
 
 
-def _encode_image(raw_image: NDArray[np.float32]) -> str:
-    clipped = np.clip(raw_image, 0.0, 1.0)
-    image = Image.fromarray((clipped * 255.0).astype(np.uint8), mode="L")
-
-    buffer = io.BytesIO()
-    image.save(buffer, format="PNG")
-    encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
-    return f"data:image/png;base64,{encoded}"
+def _encode_raw_image(raw_image: NDArray[np.float32]) -> dict[str, object]:
+    raw = np.ascontiguousarray(raw_image, dtype=np.float32)
+    encoded = base64.b64encode(raw.tobytes(order="C")).decode("ascii")
+    return {
+        "dtype": "float32",
+        "rows": cast(int, raw.shape[0]),
+        "cols": cast(int, raw.shape[1]),
+        "data": encoded,
+    }
 
 
 def _serialize_size_ref(size_ref: Roi | None) -> dict[str, float] | None:

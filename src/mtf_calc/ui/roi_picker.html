@@ -33,10 +33,9 @@
         <div id="canvas-container" class="canvas-container">
           <canvas id="image-canvas" class="image-layer"></canvas>
           <canvas id="overlay-canvas" class="overlay-layer"></canvas>
-          <div id="mtf-view" class="mtf-view" hidden>
-            <div class="mtf-card">
-              <svg id="mtf-svg" class="mtf-svg" viewBox="0 0 960 560" aria-label="MTF Graph"></svg>
-            </div>
+          <div id="hover-readout" class="hover-readout" hidden aria-live="polite">
+            <div class="hover-readout__label">Pixel</div>
+            <div id="hover-readout-copy" class="hover-readout__copy"></div>
           </div>
         </div>
       </section>
@@ -55,10 +54,6 @@
         <div class="sidebar__panel">
           <div class="sidebar__label">Selection</div>
           <div id="selection-meta" class="sidebar__meta">No ROI selected.</div>
-        </div>
-        <div id="mtf-table-panel" class="sidebar__panel" hidden>
-          <div class="sidebar__label">MTF Points</div>
-          <div id="mtf-table" class="sidebar__meta sidebar__meta--table"></div>
         </div>
         <div class="sidebar__panel">
           <div class="sidebar__label">Hints</div>
